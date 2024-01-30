@@ -46,12 +46,11 @@ export class DateService {
 
   getNext7Days() {
     let curr = new Date; // get current date
-    let first = curr.getDate() - curr.getDay() + 7 // First day is the day of the month - the day of the week
-    let last = first + 6; // last day is the first day + 6
-
-    let firstDay = this.dateToString(new Date(curr.setDate(first)))
-    let lastDay = this.dateToString(new Date(curr.setDate(last)))
-
+    curr.setDate(curr.getDate() + 1);
+    let last = new Date; // get current date
+    last.setDate(curr.getDate() + 6);
+    let firstDay = this.dateToString(curr)
+    let lastDay = this.dateToString(last)
     return firstDay + ' ~ ' + lastDay
   }
 
@@ -107,5 +106,42 @@ export class DateService {
           break
     }
     return {startDate, lastDate}
+  }
+
+  getEventTime(day: moment.Moment, time: string) {
+    const date = day ? moment(day) : moment()
+    if (time) {
+      var tm = moment(time, ["h:mm A"])
+      date.add(tm.hours(), 'hours').add(tm.minutes(), 'minutes') 
+    }
+    return date
+  }
+
+  getEventDate(day: moment.Moment, time: string) {
+    return this.getEventTime(day, time).toDate()
+  }
+
+  private dateFormats = [
+    {key: 'd-m-Y', value: 'DD-MM-YYYY'},
+    {key: 'm-d-Y', value: 'MM-DD-YYYY'},
+    {key: 'Y-m-d', value: 'YYYY-MM-DD'},
+    {key: 'Y-d-m', value: 'YYYY-DD-MM'},
+    {key: 'd M Y', value: 'DD MMM YYYY'},
+    {key: 'M d Y', value: 'MMM DD YYYY'},
+    {key: 'd F Y', value: 'DD MMM YYYY'},
+    {key: 'F d Y', value: 'MMM DD YYYY'},
+    {key: 'm\/d\/Y', value: 'MM/DD/YYYY'},
+  ]
+  getDateFormat(dateformat: string) {
+    const format = this.dateFormats.find(it => it.key == dateformat)
+    if (format) return format.value
+    return 'DD MMM YYYY'
+  }
+
+  getTimeFormat(timeformat: string) {
+    if (timeformat === '24-hours') {
+      return 'HH:mm'
+    }
+    return 'hh:mm A'
   }
 }

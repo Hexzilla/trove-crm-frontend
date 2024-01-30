@@ -36,6 +36,24 @@ export class SettingsApiService {
     );
   }
 
+  getDateFormat() {
+    return localStorage.getItem('dateformat');
+  }
+
+  setDateFormat(dateformat) {
+    console.log('setDateFormat', dateformat)
+    localStorage.setItem('dateformat', dateformat);
+  }
+
+  getTimeFormat() {
+    return localStorage.getItem('timeformat');
+  }
+
+  setTimeFormat(timeformat) {
+    console.log('setTimeFormat', timeformat)
+    localStorage.setItem('timeformat', timeformat);
+  }
+
   preferenceMe(): Observable<any> {
     let API_URL = `${this.baseURL + environment.preference}`;
     return this.httpClient.get(API_URL);
@@ -103,7 +121,7 @@ export class SettingsApiService {
       length: pageSize,
     };
     if (typeof sort != 'undefined' && typeof order != 'undefined') {
-      data['order'] = [{ column: sort, dir: order }];
+      data['order'] = { column: sort, dir: order };
     }
     return this.httpClient.post(
       `${this.baseURL + environment.listusers}`,
@@ -148,7 +166,7 @@ export class SettingsApiService {
       length: pageSize,
     };
     if (typeof sort != 'undefined' && typeof order != 'undefined') {
-      data['order'] = [{ column: sort, dir: order }];
+      data['order'] = { column: sort, dir: order };
     }
     return this.httpClient.post(
       `${this.baseURL + environment.listroles}`,
@@ -197,7 +215,7 @@ export class SettingsApiService {
       length: pageSize,
     };
     if (typeof sort != 'undefined' && typeof order != 'undefined') {
-      data['order'] = [{ column: sort, dir: order }];
+      data['order'] = { column: sort, dir: order };
     }
     return this.httpClient.post(
       `${this.baseURL + environment.pipelines + "/list"}`,
@@ -211,5 +229,9 @@ export class SettingsApiService {
 
   deletePipeline(id): Observable<any>{
     return this.httpClient.delete(`${this.baseURL + environment.pipelines + "/" + id}`);
+  }
+
+  deletePipelinee(data): Observable<any>{
+    return this.httpClient.delete(`${this.baseURL + environment.pipelines}`, data);
   }
 }

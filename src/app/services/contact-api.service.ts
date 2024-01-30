@@ -12,8 +12,14 @@ import {
   providedIn: 'root',
 })
 export class ContactApiService {
-  subject: ReplaySubject<any> = new ReplaySubject()
-  obs: Observable<any> = this.subject.asObservable()
+  private companySubject: ReplaySubject<any> = new ReplaySubject()
+  companyObserver: Observable<any> = this.companySubject.asObservable()
+
+  private companyDetailSubject: ReplaySubject<any> = new ReplaySubject()
+  companyDetailObserver: Observable<any> = this.companyDetailSubject.asObservable()
+
+  private contactSubject: ReplaySubject<any> = new ReplaySubject()
+  contactObserver: Observable<any> = this.contactSubject.asObservable()
 
   baseURL = environment.baseUrl
   public searchText: string = null
@@ -66,6 +72,14 @@ export class ContactApiService {
     return this.httpClient.post(`${this.baseURL + environment.company}`, data)
   }
 
+  updateCompany(companyId, data: any): Observable<any> {
+    return this.httpClient.put(`${this.baseURL + environment.company}/${companyId}`, data)
+  }
+
+  getCompanyDetial(companyId): Observable<any> {
+    return this.httpClient.get(`${this.baseURL + environment.company_detail}/${companyId}`)
+  }
+
   getCompanyList(data): Observable<any> {
     const API_URL = `${this.baseURL + environment.company_index}`
     return this.httpClient.post(API_URL, data)
@@ -76,13 +90,77 @@ export class ContactApiService {
       const data = { ids: companyIds }
       const API_URL = `${this.baseURL + environment.company_delete_multiple}`
       return this.httpClient.post(API_URL, data)
-    } else {
+    }
+    else {
       const companyId = companyIds[0]
-      const API_URL = `${
-        this.baseURL + environment.company_delete
-      }/${companyId}`
+      const API_URL = `${this.baseURL + environment.company_delete}/${companyId}`
       return this.httpClient.delete(API_URL)
     }
+  }
+
+  updateCompanyState(id, data): Observable<any> {
+    const API_URL = `${this.baseURL + environment.company_update_state}/${id}`
+    return this.httpClient.put(API_URL, data)
+  }
+
+  createAppointment(appoint): Observable<any> {
+    const API_URL = `${this.baseURL + environment.company_create_appointment}`
+    return this.httpClient.post(API_URL, appoint)
+  }
+
+  updateAppointment(id, appoint): Observable<any> {
+    const API_URL = `${this.baseURL + environment.company_update_appointment}/${id}`
+    return this.httpClient.put(API_URL, appoint)
+  }
+
+  deleteAppointment(id): Observable<any> {
+    const API_URL = `${this.baseURL + environment.appointment_delete}/${id}?_method=DELETE`
+    return this.httpClient.post(API_URL, {})
+  }
+
+  updateAppointmentState(id: number, data) {
+    const API_URL = `${this.baseURL + environment.company_appointment_state}/${id}`
+    return this.httpClient.put(API_URL, data)
+  }
+
+  createTask(task): Observable<any> {
+    const API_URL = `${this.baseURL + environment.company_create_task}`
+    return this.httpClient.post(API_URL, task)
+  }
+
+  updateTask(id, task): Observable<any> {
+    const API_URL = `${this.baseURL + environment.company_update_task}/${id}`
+    return this.httpClient.put(API_URL, task)
+  }
+
+  deleteTask(id): Observable<any> {
+    const API_URL = `${this.baseURL + environment.task_delete}/${id}?_method=DELETE`
+    return this.httpClient.post(API_URL, {})
+  }
+
+  updateTaskState(id: number, data) {
+    const API_URL = `${this.baseURL + environment.company_task_state}/${id}`
+    return this.httpClient.put(API_URL, data)
+  }
+
+  deleteActivity(menu, data) {
+    const API_URL = `${this.baseURL}activity/${menu}?_method=DELETE`
+    return this.httpClient.post(API_URL, data)
+  }
+
+  createCompanyNote(data) {
+    const API_URL = `${this.baseURL + environment.company_add_note}`
+    return this.httpClient.post(API_URL, data)
+  }
+
+  createCompanyEmail(data) {
+    const API_URL = `${this.baseURL + environment.company_add_email}`
+    return this.httpClient.post(API_URL, data)
+  }
+
+  createCompanyCall(data) {
+    const API_URL = `${this.baseURL + environment.company_add_call}`
+    return this.httpClient.post(API_URL, data)
   }
 
   /* Helper Functions */
@@ -117,8 +195,9 @@ export class ContactApiService {
     const countries = this.getCountries()
     if (countries) {
       const dialCodes = countries
-        .filter((x) => x.dial_code)
-        .map((x) => x.dial_code)
+        .filter(item => item.dial_code)
+        .map(item => item.dial_code)
+        .filter((item, pos, self) => self.indexOf(item) == pos)
       return this.sortDialCodes(dialCodes)
     }
     return null
@@ -134,8 +213,16 @@ export class ContactApiService {
     })
   }
 
-  notify() {
-    this.subject.next()
+  notifyCompany() {
+    this.companySubject.next()
+  }
+
+  notifyCompanyDetail() {
+    this.companyDetailSubject.next()
+  }
+
+  notifyContact() {
+    this.contactSubject.next()
   }
 
   ngOnDestroy() {}

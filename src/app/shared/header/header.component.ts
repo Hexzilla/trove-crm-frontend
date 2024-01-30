@@ -1,6 +1,7 @@
 import { TokenService } from './../../services/token.service';
 import { Component, Inject, Input, OnInit } from '@angular/core';
 import { Router, NavigationExtras } from '@angular/router';
+import { NgbModal, ModalDismissReasons} from '@ng-bootstrap/ng-bootstrap';
 import { AccountApiService } from '../../services/account-api.service';
 import { ContactApiService } from '../../services/contact-api.service';
 import {
@@ -15,6 +16,7 @@ import {
   Validators,
   FormArray,
   FormGroupDirective,
+  AbstractControl,
 } from '@angular/forms';
 import { Observable, Subscription } from 'rxjs';
 import { map, startWith } from 'rxjs/operators';
@@ -39,6 +41,40 @@ import { A11yModule } from '@angular/cdk/a11y';
 interface HTMLInputEvent extends Event {
   target: HTMLInputElement & EventTarget;
 }
+
+function validateEmail(control: AbstractControl) {
+  const re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  if (re.test(control.value)) return null;
+  return { email: 'Invalid email format'}
+}
+
+function validationMessage(formGroup: FormGroup, controlName: string) {
+  const control = formGroup.controls[controlName]
+  if (control.hasError('required')) {
+    return 'This field is required';
+  }
+  if (control.hasError('email')) {
+    return 'The email format is invalid';
+  }
+  if (control.hasError('pattern')) {
+    if (controlName === 'mobile_number') return 'The mobile number must be 10 digits';
+    if (controlName === 'work_number') return 'The work number must be 10 digits';
+    if (controlName === 'work_phone') return 'The work phone must be 10 digits';
+    return 'Invalid value'
+  }
+  if (control.hasError('minlength')) {
+    return `The minimum length is ${control.errors.minlength.requiredLength}.`;
+  }
+  if (control.hasError('maxlength')) {
+    return `The minimum length is ${control.errors.maxlength.requiredLength}.`;
+  }
+  
+  if (control.errors && control.errors.message) {
+    return control.errors.message;
+  }
+  return '';
+}
+
 
 @Component({
   selector: 'app-header',
@@ -77,10 +113,10 @@ export class HeaderComponent implements OnInit {
         icon: 'menu002.png',
         link: '/pages/contact',
       },
-      {
+      /*{
         icon: 'menu003.png',
         link: '/pages/company',
-      },
+      },*/
       {
         icon: 'menu004.png',
         link: '/pages/task',
@@ -90,6 +126,10 @@ export class HeaderComponent implements OnInit {
         link: '/pages/appointments',
       },
     ];
+    this.filteredOptions = this.myControl.valueChanges.pipe(
+      startWith(''),
+      map(value => this._filter(value))
+    )
   }
   showNotification() {
     this.isNotification = !this.isNotification;
@@ -209,7 +249,7 @@ export class HeaderComponent implements OnInit {
       });
       dialogRef.afterClosed().subscribe((result) => {
         if (result) {
-          this.sb.openSnackBarBottomCenter(result, 'Close')
+
         }
       })
     }
@@ -289,6 +329,8 @@ export class LeadDialog {
 
   stages: any[] = [];
   selectedStage = 0;
+  selectedStageId = "";
+  currencyCode = "";
   isEdit: boolean = false;
 
   @Input() addLeadForm: FormGroup;
@@ -338,8 +380,13 @@ export class LeadDialog {
             this.initaddLeadForm(res.data.lead);
           } else {
             this.initaddLeadForm();
+            this.stages = res.data.pipelines[0].stages;
+            this.addLeadForm.get('pipeline_id').patchValue(res.data.pipelines[0].id);
+            this.addLeadForm.get('stage_id').patchValue(res.data.pipelines[0].stages[0].id);
+            this.selectedStageId = res.data.pipelines[0].stages[0].id;
           }
           this.addLeadForm.get('currency.id').patchValue(res.data.currency.id);
+          this.currencyCode = res.data.currency.code;
           this.sb.openSnackBarBottomCenter(res.message, 'Close');
         } else {
           this.sb.openSnackBarBottomCenter(res.message, 'Close');
@@ -406,9 +453,12 @@ export class LeadDialog {
           ],
         ],
         organization_id: [data.organization_id, [Validators.required]],
-        owner_id: [data.owner_id, [Validators.required]],
-        pipeline_id: [data.pipeline_id, []],
-        stage_id: [data.stage_id, []],
+        owner_id: [
+          data.owner_id,
+          [Validators.required],
+        ],
+        pipeline_id: [data.pipeline_id, [Validators.required]],
+        stage_id: [data.stage_id, [Validators.required]],
         currency: this.fb.group({
           id: ['', [Validators.required]],
           value: ['', [Validators.required]],
@@ -435,9 +485,12 @@ export class LeadDialog {
           ],
         ],
         organization_id: ['', [Validators.required]],
-        owner_id: [this.userProfile.id, [Validators.required]],
-        pipeline_id: ['', []],
-        stage_id: ['', []],
+        owner_id: [
+          this.userProfile.id,
+          [Validators.required],
+        ],
+        pipeline_id: ['', [Validators.required]],
+        stage_id: ['', [Validators.required]],
         currency: this.fb.group({
           id: ['', [Validators.required]],
           value: ['', [Validators.required]],
@@ -460,7 +513,7 @@ export class LeadDialog {
       //console.log(this.selectedContacts.value);
       this.addLeadForm.patchValue({
         //contacts: this.selectedContacts.value,
-        stage_id: this.selectedStage,
+        stage_id: this.selectedStageId,
         // formControlName2: myValue2
       });
       console.log('submitting');
@@ -469,13 +522,15 @@ export class LeadDialog {
       console.log(this.addLeadForm.value);
       const subs_form = this.LeadApiService
         .addLead(this.addLeadForm.value)
-	.subscribe((response) => {
-          this.dialogRef.close();
-          this.sb.openSnackBarBottomCenter(response.message, 'Close');
-        },
-        (errorResponse: HttpErrorResponse) => {
-          if (errorResponse.error.code === 252) {
-            const validationErrors = {};
+        .subscribe(
+          (response) => {
+            this.dialogRef.close();
+            this.sb.openSnackBarBottomCenter(response.message, 'Close');
+            this.LeadApiService.notify()
+          },
+          (errorResponse: HttpErrorResponse) => {
+            if (errorResponse.error.code === 252) {
+            const validationErrors = errorResponse.error.data; //{name: "", organization_id: "", owner_id: "", pipeline_id: "", stage_id: "", currency: "", source_id: "", added_on: "", closed_on: "", description: "", contacts: ""};
             Object.keys(validationErrors).forEach((prop) => {
               const formControl = this.addLeadForm.get(prop);
               if (formControl) {
@@ -484,6 +539,8 @@ export class LeadDialog {
                 });
               }
             });
+            console.log("vaidation errors");
+            console.log(validationErrors);
           } else {
             const messages =
               extractErrorMessagesFromErrorResponse(errorResponse);
@@ -500,14 +557,15 @@ export class LeadDialog {
     }
   }
 
-  onPipelineChange(ob) {
+  onPipelineChange(ob){
+    this.selectedStage = 0;
     let selectedPipeline = ob.value;
     console.log(selectedPipeline);
     var result = this.pipelines.find((obj) => {
       return obj.id === selectedPipeline;
     });
     this.stages = result.stages;
-    this.selectedStage = result.stages[0].id;
+    this.selectedStageId = result.stages[0].id;
   }
 
   onContactChange(selected) {
@@ -548,7 +606,7 @@ export class ContactDialog {
     'Description',
   ];
   filteredOptions: Observable<string[]>;
-  
+
   form: FormGroup;
   showMandatory: boolean = false;
   search: string = '';
@@ -561,7 +619,6 @@ export class ContactDialog {
   companyList = [];
   emailOwners = [];
   dialCodes = [];
-  errors = null
 
   constructor(
     private contactService: ContactApiService,
@@ -584,27 +641,14 @@ export class ContactDialog {
 
   reactiveForm() {
     this.form = this.fb.group({
-      first_name: ['Loneyn', [Validators.required]],
-      last_name: ['Messoal', [Validators.required]],
+      file: [null, [this.validateImageFileType()]],
+      profile_pic: [null],
+      first_name: ['', [Validators.required, Validators.pattern('^[a-zA-Z0-9]*$')]],
+      last_name: ['', [Validators.required, Validators.pattern('^[a-zA-Z0-9]*$')]],
       mobile_code: ['', [Validators.required]],
-      mobile_number: [
-        '3334411298',
-        [
-          Validators.required,
-          Validators.minLength(10),
-          Validators.maxLength(10),
-          Validators.pattern('^[0-9]*$'),
-        ],
-      ],
-      work_phone: [
-        '',
-        [
-          Validators.minLength(10),
-          Validators.maxLength(10),
-          Validators.pattern('^[0-9]*$'),
-        ],
-      ],
-      email: ['ktageisk333@gmail.com', [Validators.required, Validators.email]],
+      mobile_number: ['', [Validators.required, Validators.pattern('^[0-9]{10}$')]],
+      work_number: ['', [Validators.pattern('^[0-9]{10}$')]],
+      email: ['', [Validators.required, validateEmail]],
       owner_id: ['', [Validators.required]],
       organization: [''],
       address: [''],
@@ -613,23 +657,32 @@ export class ContactDialog {
     });
   }
 
+  checkImageFileExtension(extension) {
+    return (extension === 'png' || extension === 'jpg' || extension === 'jpeg' || extension === 'bmp')
+  }
+
+  validateImageFileType() {
+    return function (control: FormControl) {
+      const file = control.value;
+      if (file) {
+        const extension = file.split('.')[1].toLowerCase();
+        if (extension === 'png' || extension === 'jpg' || extension === 'jpeg' || extension === 'bmp') {
+          return null
+        }
+        return {
+          requiredFileType: true,
+        }
+      }
+      return null;
+    };
+  }
+
   hasValidationError(key) {
     return this.form.controls[key].invalid && this.form.controls[key].errors;
   }
 
   getValidationMessage(key) {
-    const control = this.form.controls[key];
-    if (control.hasError('required')) return 'This field is required';
-    if (control.hasError('email')) return 'Please enter a valid email address';
-    if (control.hasError('pattern')) {
-      if (control.errors.pattern.requiredPattern == '^[0-9]*$')
-        return 'Please input numbers only';
-    }
-    if (control.hasError('minlength'))
-      return `The minimum length is ${control.errors.minlength.requiredLength}.`;
-    if (control.hasError('maxlength'))
-      return `The minimum length is ${control.errors.maxlength.requiredLength}.`;
-    return '';
+    return validationMessage(this.form, key)
   }
 
   private _filter(value: string): string[] {
@@ -645,43 +698,51 @@ export class ContactDialog {
   }
 
   submitForm(): void {
-    console.log('contact.submit', this.form.value, 'Image:', this.imageSrc);
+    console.log('contact.submit', this.form.value);
     if (!this.form.valid) {
       return;
     }
 
-    const post_data = {
-      ...this.form.value,
-      mobile: {
-        code: this.form.value.mobile_code,
-        number: this.form.value.mobile_number,
-      },
-    };
-    /*if (this.imageSrc) {
-      post_data['profile_pic'] = this.imageSrc
-    }*/
-    
-    this.contactService.createContact(post_data).subscribe(
+    const values = this.form.value
+    const formData = new FormData()
+    formData.append('first_name', values.first_name);
+    formData.append('last_name', values.last_name);
+    formData.append("mobile[code]", values.mobile_code);
+    formData.append("mobile[number]", values.mobile_number);
+    formData.append('email', values.email);
+    formData.append('owner_id', values.owner_id);
+    values.profile_pic && formData.append('profile_pic', values.profile_pic);
+    values.work_number && formData.append('work_number', values.work_number);    
+    values.address && formData.append('address', values.address);
+    values.skype_id && formData.append('skype_id', values.skype_id);
+    values.description && formData.append('description', values.description);
+    if (values.organization) {
+      values.organization.forEach(id => {
+        formData.append('organization[]', id);
+      })
+    }
+
+    this.contactService.createContact(formData).subscribe(
       (res: any) => {
         console.log('contact created', res);
         if (res.success) {
           this.dialogRef.close(res.message);
-          this.contactService.notify();
+          this.contactService.notifyContact();
         } else {
           this.sb.openSnackBarBottomCenter(res.message, 'Close');
         }
       },
       (err) => {
-        this.errors = {};
         const data = err.error.data;
         for (const key in data) {
-          if (Array.isArray(data[key])) this.errors[key] = data[key][0];
-          else this.errors[key] = data[key];
+          if (this.form.controls.hasOwnProperty(key)) {
+            let message = data[key];
+            if (Array.isArray(data[key])) message = data[key][0];
+            this.form.controls[key].setErrors({ message: message })
+          }
         }
-        console.log('this.errors', this.errors);
-        const messages = Object.values(this.errors).join('\r\n');
-        console.log(messages);
-        this.sb.openSnackBarTopCenterAsDuration(messages, 'Close', 4000);
+        console.log('this.errors', data);
+        this.sb.openSnackBarTopCenterAsDuration("Internal Server Error", 'Close', 4000);
       }
     );
   }
@@ -715,8 +776,19 @@ export class ContactDialog {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
 
+      const extension = file.name.split('.')[1].toLowerCase();
+      if (!this.checkImageFileExtension(extension)) {
+        this.form.patchValue({file: null})
+        return
+      }
+
       const reader = new FileReader();
-      reader.onload = (e) => (this.imageSrc = reader.result as string);
+      reader.onload = (e) => {
+        this.imageSrc = reader.result as string
+        this.form.patchValue({
+            profile_pic: file
+        });
+      }
 
       reader.readAsDataURL(file);
     }
@@ -757,16 +829,17 @@ export class CompanyDialog {
 
   form: FormGroup;
   showMandatory: boolean = false;
-  search: string = '';
 
   addressSelect = false;
   isEdit: boolean = false;
+  company = null;
   countries = [];
   emailOwners = [];
   dialCodes = []
-  errors = null
+  closeResult = '';
 
   constructor(
+    private modalService: NgbModal,
     private contactService: ContactApiService,
     private sb: SnackBarService,
     public fb: FormBuilder,
@@ -774,6 +847,7 @@ export class CompanyDialog {
     @Inject(MAT_DIALOG_DATA) public data: any
   ) {
     this.isEdit = this.data?.isEdit;
+    this.company = this.data?.company
     this.countries = this.contactService.getCountries()
     this.emailOwners = this.contactService.getEmailOwners()
     this.dialCodes = this.contactService.getDialCodes()
@@ -786,34 +860,20 @@ export class CompanyDialog {
 
   reactiveForm() {
     this.form = this.fb.group({
-      organization_name: ['', [Validators.required]],
-      mobile_code: ['', [Validators.required]],
-      mobile_number: [
-        '',
-        [
-          Validators.required,
-          Validators.minLength(10),
-          Validators.maxLength(10),
-          Validators.pattern('^[0-9]*$'),
-        ],
-      ],
-      work_phone: [
-        '',
-        [
-          Validators.minLength(10),
-          Validators.maxLength(10),
-          Validators.pattern('^[0-9]*$'),
-        ],
-      ],
-      email: ['', [Validators.required, Validators.email]],
-      address: [''],
-      city: [''],
-      postal_code: [''],
-      state: [''],
-      country: [''],
-      owner_id: ['', [Validators.required]],
-      skype_id: [''],
-      description: [''],
+      organization_name: [this.company?.name || '', [Validators.required]],
+      mobile_code: [this.company?.country_code || '', [Validators.required]],
+      mobile_number: [this.company?.mobile || '', [Validators.required, Validators.pattern('^[0-9]{10}$')]],
+      work_phone: [this.company?.work_phone || '', [Validators.required, Validators.pattern('^[0-9]{10}$')]],
+      email: [this.company?.email || '', [Validators.required, validateEmail]],
+      address: [this.company?.address || ''],
+      city: [this.company?.city || ''],
+      postal_code: [this.company?.postal_code || ''],
+      state: [this.company?.state || ''],
+      country: [this.company?.country || ''],
+      owner_id: [this.company?.owner_id || '', [Validators.required]],
+      skype_id: [this.company?.skype_id || ''],
+      description: [this.company?.description || ''],
+      search: ['']
     });
   }
 
@@ -822,18 +882,7 @@ export class CompanyDialog {
   }
 
   getValidationMessage(key) {
-    const control = this.form.controls[key];
-    if (control.hasError('required')) return 'This field is required';
-    if (control.hasError('email')) return 'Please enter a valid email address';
-    if (control.hasError('pattern')) {
-      if (control.errors.pattern.requiredPattern == '^[0-9]*$')
-        return 'Please input numbers only';
-    }
-    if (control.hasError('minlength'))
-      return `The minimum length is ${control.errors.minlength.requiredLength}.`;
-    if (control.hasError('maxlength'))
-      return `The minimum length is ${control.errors.maxlength.requiredLength}.`;
-    return '';
+    return validationMessage(this.form, key)
   }
 
   private _filter(value: string): string[] {
@@ -849,41 +898,70 @@ export class CompanyDialog {
   }
 
   submitForm(): void {
-    console.log(this.form.value);
+    console.log('submit', this.form.value);
     if (!this.form.valid) {
       return;
     }
 
-    const post_data = {
+    const payload = {
       ...this.form.value,
       mobile: {
         code: this.form.value.mobile_code,
         number: this.form.value.mobile_number,
       },
     };
-    this.contactService.createCompany(post_data).subscribe(
+    Object.keys(payload).forEach((k) => !payload[k] && delete payload[k])
+    console.log('submit-payload', payload);
+
+    const observable = this.isEdit ?
+        this.contactService.updateCompany(this.company.id, payload) :
+        this.contactService.createCompany(payload)
+
+    observable.subscribe(
       (res: any) => {
-        console.log('company created', res);
+        this.sb.openSnackBarBottomCenter(res.message, 'Close');
         if (res.success) {
-          this.dialogRef.close(res.message);
-          this.contactService.notify();
-        } else {
-          this.sb.openSnackBarBottomCenter(res.message, 'Close');
+          this.updateCompany()
+          this.dialogRef.close({
+            state: this.isEdit? 'updated' : 'created',
+            message: res.message,
+            company: this.company
+          });
+          this.contactService.notifyCompany();
         }
       },
       (err) => {
-        this.errors = {};
         const data = err.error.data;
         for (const key in data) {
-          if (Array.isArray(data[key])) this.errors[key] = data[key][0];
-          else this.errors[key] = data[key];
+          if (this.form.controls.hasOwnProperty(key)) {
+            let message = data[key];
+            if (Array.isArray(data[key])) message = data[key][0];
+            this.form.controls[key].setErrors({ message: message })
+          }
         }
-        console.log('this.errors', this.errors);
-        const messages = Object.values(this.errors).join('\r\n');
-        console.log(messages);
-        this.sb.openSnackBarTopCenterAsDuration(messages, 'Close', 4000);
+        console.log('this.errors', data);
+        this.sb.openSnackBarTopCenterAsDuration("Internal Server Error", 'Close', 4000);
       }
     );
+  }
+
+  updateCompany() {
+    if (this.company) {
+      const fb = this.form.value;
+      this.company.name = fb.organization_name;
+      this.company.country_code = fb.mobile_code;
+      this.company.mobile = fb.mobile_number;
+      this.company.work_phone = fb.work_phone;
+      this.company.email = fb.email;
+      this.company.address = fb.address;
+      this.company.city = fb.city;
+      this.company.postal_code = fb.postal_code;
+      this.company.state = fb.state;
+      this.company.country = fb.country;
+      this.company.owner_id = fb.owner_id;
+      this.company.skype_id = fb.skype_id;
+      this.company.description = fb.description;
+    }
   }
 
   checkMandatory(e) {
@@ -891,9 +969,50 @@ export class CompanyDialog {
   }
 
   checkShow(name) {
-    if (!this.search) return true;
-    if (name.toUpperCase().search(this.search.toUpperCase()) == -1)
-      return false;
-    else return true;
+    if (!this.form.value.search) return true;
+    return (name.toUpperCase().search(this.form.value.search.toUpperCase()) >= 0)
+  }
+
+  getSearchState() {
+    return this.form.value.search && this.form.value.search.length > 0
+  }
+
+  resetSearch() {
+    this.form.value.search = ''
+  }
+
+  open(content) {
+    this.modalService.open(content, {ariaLabelledBy: 'dialog001'}).result.then((result) => {
+      this.closeResult = `Closed with: ${result}`;
+    }, (reason) => {
+      this.closeResult = `Dismissed ${this.getDismissReason(reason)}`;
+    });
+  }
+
+  private getDismissReason(reason: any): string {
+    if (reason === ModalDismissReasons.ESC) {
+      return 'by pressing ESC';
+    }
+    else if (reason === ModalDismissReasons.BACKDROP_CLICK) {
+      return 'by clicking on a backdrop';
+    }
+    else {
+      return `with: ${reason}`;
+    }
+  }
+
+  deleteItem(event) {
+    console.log('deleteItem', this.company)
+    this.contactService
+      .deleteCompany([this.company.id])
+      .subscribe((res: any) => {
+        this.sb.openSnackBarBottomCenter(res.message, 'Close');
+        if (res.success) {
+          this.dialogRef.close({
+            state: 'deleted',
+            message: res.message,
+          });
+        }
+      })
   }
 }

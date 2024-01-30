@@ -1,5 +1,7 @@
-import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnInit, EventEmitter, AfterViewInit, Input, Output } from '@angular/core';
 import { MatTabChangeEvent } from '@angular/material/tabs';
+import { ContactApiService } from 'src/app/services/contact-api.service';
+import { SnackBarService } from 'src/app/shared/snack-bar.service';
 
 @Component({
   selector: 'app-text-editor',
@@ -7,59 +9,67 @@ import { MatTabChangeEvent } from '@angular/material/tabs';
   styleUrls: ['./text-editor.component.css']
 })
 
-export class TextEditorComponent implements AfterViewInit {
-  @ViewChild('tabGroup', { static: false })
+export class TextEditorComponent implements OnInit {
+  //@ViewChild('tabGroup', { static: false })
+  @Input() activity: any
+  @Input() associate_members = null
+  @Output() addActivityEvent = new EventEmitter()
+
   public tabGroup: any;
   public activeTabIndex: number | undefined = undefined;
   public editorShow: boolean = true;
 
-  public titleOptions1: Object = {
+  selectedAssociates: any[] = []
+  selectedEmail: any[] = []
+  selectedCall: any[] = []
+
+  private noteEditorContent: string = ''
+  private emailEditorContent: string = ''
+  private callEditorContent: string = ''
+  
+  public titleOptions: Object = {
     // placeholderText: 'Edit Your Content Here!',
     // charCounterCount: false,
     // toolbarInline: true,
     key:'cJC7bA5D3G2F2C2G2yQNDMIJg1IQNSEa1EUAi1XVFQd1EaG3C2A5D5C4E3D2D4D2B2==',
-    toolbarBottom: true,
+    //toolbarBottom: true,
+    //imageEditButtons: ['imageReplace', 'imageAlign', 'imageRemove', '|', 'imageLink', 'linkOpen', 'linkEdit', 'linkRemove', '-', 'imageDisplay', 'imageStyle', 'imageAlt', 'imageSize'],
+    //toolbarButtons : ["bold", "italic", "underline", "|", "align", "formatOL", "formatUL"],
+    fileUploadParam: 'files',
+    fileUploadURL: 'http://localhost:4200/pages/company_detail/upload_file',
+    fileUploadParams: {id: 'my_editor'},
+    fileUploadMethod: 'POST',
+    fileMaxSize: 2 * 1024 * 1024,
+    fileAllowedTypes: ['application/zip'],
     events: {
-      "initialized": () => {
+      'initialized': () => {
         console.log('initialized');
       },
-      "contentChanged": () => {
-        console.log("content changed");
+      'file.beforeUpload': function (files) {
+        // Return false if you want to stop the file upload.
+        console.log('file.beforeUpload')
+      },
+      'file.uploaded': function (response) {
+        console.log('file.uploaded')
+      },
+      'file.inserted': function ($file, response) {
+        console.log('file.inserted')
+      },
+      'file.error': function (error, response) {
+        console.log('error', error)
       }
     }
   }
 
-
-  public titleOptions2: Object = {
-    // placeholderText: 'Edit Your Content Here!',
-    // charCounterCount: false,
-    // toolbarInline: true,
-    key:'cJC7bA5D3G2F2C2G2yQNDMIJg1IQNSEa1EUAi1XVFQd1EaG3C2A5D5C4E3D2D4D2B2==',
-    toolbarBottom: true,
-    imageEditButtons: ['imageReplace', 'imageAlign', 'imageRemove', '|', 'imageLink', 'linkOpen', 'linkEdit', 'linkRemove', '-', 'imageDisplay', 'imageStyle', 'imageAlt', 'imageSize'],
-    events: {
-      "initialized": () => {
-        console.log('initialized');
-      },
-      "contentChanged": () => {
-        console.log("content changed");
-      }
-    }
-  }
-
-  public titleOptions3: Object = {
-    // placeholderText: 'Edit Your Content Here!',
-    // charCounterCount: false,
-    // toolbarInline: true,
-    key:'cJC7bA5D3G2F2C2G2yQNDMIJg1IQNSEa1EUAi1XVFQd1EaG3C2A5D5C4E3D2D4D2B2==',
-    toolbarBottom: true,
-    events: {
-      "initialized": () => {
-        console.log('initialized');
-      },
-      "contentChanged": () => {
-        console.log("content changed");
-      }
+  constructor(
+    private contactService: ContactApiService,
+    private sb: SnackBarService
+    ) {
+    this.activeTabIndex = 0;
+    this.associate_members = {
+      contacts: [],
+      organizations: [],
+      leads: []
     }
   }
 
@@ -68,230 +78,113 @@ export class TextEditorComponent implements AfterViewInit {
     console.log('tabIndex', this.activeTabIndex)
   }
 
-
-  // input data for company,leads,contacts
-  optionsPerson: any[] = [
-    {
-      name: "Person",
-      icon: "person",
-      isChecked: false,
-      email: "sampleperson@gmail.com"
-    },
-    {
-      name: "Person 2",
-      icon: "person",
-      isChecked: false,
-      email: "sampleperson2@gmail.com"
-    },
-    {
-      name: "Person 3",
-      icon: "person",
-      isChecked: false,
-      email: "sampleperson3@gmail.com"
-    }
-    ]
-    optionsCompany: any[] = [
-      {
-        name: "Company",  icon: "business" , isChecked: false,
-        desc: "Sample Description"
-      },
-      {
-        name: "Company 2",  icon: "business" , isChecked: false,
-        desc: "Sample Description2"
-      },
-      {
-        name: "Company 3",  icon: "business" , isChecked: false,
-        desc: "Sample Description3"
-      }
-      ]
-      optionsLeads: any[] = [
-        {
-          name: "Leads",  icon: "leaderboard" , isChecked: false,
-          desc: "Sample Description"
-        },
-        {
-          name: "Leads 2",  icon: "leaderboard" , isChecked: false,
-          desc: "Sample Description2"
-        },
-        {
-          name: "Leads 3",  icon: "leaderboard" , isChecked: false,
-          desc: "Sample Description3"
-        }
-        ]
-
-  selected: any[] = []
-  // input data for company,leads,contacts
-
-  // input data for company,leads,contacts
-  optionsPersonEmail: any[] = [
-    {
-      name: "Person",
-      icon: "person",
-      isChecked: false,
-      email: "sampleperson@gmail.com"
-    },
-    {
-      name: "Person 2",
-      icon: "person",
-      isChecked: false,
-      email: "sampleperson2@gmail.com"
-    },
-    {
-      name: "Person 3",
-      icon: "person",
-      isChecked: false,
-      email: "sampleperson3@gmail.com"
-    }
-    ]
-    optionsCompanyEmail: any[] = [
-      {
-        name: "Company",  icon: "business" , isChecked: false,
-        desc: "Sample Description"
-      },
-      {
-        name: "Company 2",  icon: "business" , isChecked: false,
-        desc: "Sample Description2"
-      },
-      {
-        name: "Company 3",  icon: "business" , isChecked: false,
-        desc: "Sample Description3"
-      }
-      ]
-      optionsLeadsEmail: any[] = [
-        {
-          name: "Leads",  icon: "leaderboard" , isChecked: false,
-          desc: "Sample Description"
-        },
-        {
-          name: "Leads 2",  icon: "leaderboard" , isChecked: false,
-          desc: "Sample Description2"
-        },
-        {
-          name: "Leads 3",  icon: "leaderboard" , isChecked: false,
-          desc: "Sample Description3"
-        }
-        ]
-
-  selectedEmail: any[] = []
-  // input data for company,leads,contacts
-
-  // input data for company,leads,contacts
-  optionsPersonCall: any[] = [
-    {
-      name: "Person",
-      icon: "person",
-      isChecked: false,
-      email: "sampleperson@gmail.com"
-    },
-    {
-      name: "Person 2",
-      icon: "person",
-      isChecked: false,
-      email: "sampleperson2@gmail.com"
-    },
-    {
-      name: "Person 3",
-      icon: "person",
-      isChecked: false,
-      email: "sampleperson3@gmail.com"
-    }
-    ]
-    optionsCompanyCall: any[] = [
-      {
-        name: "Company",  icon: "business" , isChecked: false,
-        desc: "Sample Description"
-      },
-      {
-        name: "Company 2",  icon: "business" , isChecked: false,
-        desc: "Sample Description2"
-      },
-      {
-        name: "Company 3",  icon: "business" , isChecked: false,
-        desc: "Sample Description3"
-      }
-      ]
-      optionsLeadsCall: any[] = [
-        {
-          name: "Leads",  icon: "leaderboard" , isChecked: false,
-          desc: "Sample Description"
-        },
-        {
-          name: "Leads 2",  icon: "leaderboard" , isChecked: false,
-          desc: "Sample Description2"
-        },
-        {
-          name: "Leads 3",  icon: "leaderboard" , isChecked: false,
-          desc: "Sample Description3"
-        }
-        ]
-
-  selectedCall: any[] = []
-  // input data for company,leads,contacts
-
-  constructor() {
-    this.activeTabIndex = 0;
+  ngOnInit(): void {
+    console.log('text-editor', this.activity)
   }
 
-  // input data for company,leads,contacts
-  public onSelectionChange(event) {
-    if(event.isChecked) {
-      this.selected.push(event);
+  ngOnChanges(): void {
+    console.log('text-editor-ngOnChanges', this.activity, this.associate_members)
+    if (this.activity) {
+      if (this.activity.activity_name === 'note') this.activeTabIndex = 0;
+      else if (this.activity.activity_name === 'email') this.activeTabIndex = 1;
+      else if (this.activity.activity_name === 'call') this.activeTabIndex = 2;
+    }
+  }
+
+  triggerSnackBar(message: string) {
+    this.sb.openSnackBarBottomCenter(message, 'Close');
+  }
+
+  public onSelectionChange(event, item) {
+    if (event.checked) {
+      this.selectedAssociates.push(item);
     }
     else{
-      this.deleteSelected(event);
+      this.deleteSelected(item);
     }
   }
 
-  deleteSelected(e) {
-    e.isChecked = false;
-    const index = this.selected.indexOf(e)
-    this.selected.splice(index, 1)
-  }
-  // input data for company,leads,contacts
-
-   // input data for company,leads,contacts
-   public onSelectionChangeEmail(event) {
-    if(event.isChecked) {
-      this.selectedEmail.push(event);
-    }
-    else{
-      this.deleteSelectedEmail(event);
-    }
+  deleteSelected(item) {
+    const index = this.selectedAssociates.indexOf(item)
+    this.selectedAssociates.splice(index, 1)
   }
 
-  deleteSelectedEmail(e) {
-    e.isChecked = false;
-    const index = this.selectedEmail.indexOf(e)
-    this.selectedEmail.splice(index, 1)
-  }
-  // input data for company,leads,contacts
-
-  // input data for company,leads,contacts
-  public onSelectionChangeCall(event) {
-    if(event.isChecked) {
-      this.selectedCall.push(event);
-    }
-    else{
-      this.deleteSelectedCall(event);
-    }
-  }
-
-  deleteSelectedCall(e) {
-    e.isChecked = false;
-    const index = this.selectedCall.indexOf(e)
-    this.selectedCall.splice(index, 1)
-  }
-  // input data for company,leads,contacts
-
-  ngAfterViewInit(): void {
-    this.activeTabIndex = this.tabGroup.selectedIndex;
-  }
+  // ngAfterViewInit(): void {
+  //   this.activeTabIndex = this.tabGroup.selectedIndex;
+  // }
 
   public showEditor() {
     this.editorShow = true
   }
 
   public hideEditor() {
-    this.editorShow = false
+    //this.editorShow = false
+  }
+
+  private findAssociatedContact(contact) {
+    return this.associate_members.contacts.find(it => it.id == contact.id)
+  }
+
+  private findAssociatedCompany(company) {
+    return this.associate_members.organizations.find(it => it.id == company.id)
+  }
+
+  private findAssociatedLead(lead) {
+    return this.associate_members.leads.find(it => it.id == lead.id)
+  }
+
+  public saveNote() {
+    const payload = this.getActivityPayload(this.noteEditorContent)
+    payload && this.addActivityEvent.emit({ type: 'note', data: payload })
+  }
+
+  public saveEmail() {
+    const payload = this.getActivityPayload(this.emailEditorContent)
+    payload && this.addActivityEvent.emit({ type: 'email', data: payload })
+  }
+
+  public saveCall() {
+    const payload = this.getActivityPayload(this.callEditorContent)
+    payload && this.addActivityEvent.emit({ type: 'call', data: payload })
+  }
+
+  private getActivityPayload(contents: string) {
+    console.log('getActivityPayload', contents)
+    if (this.selectedAssociates.length <= 0) {
+      this.triggerSnackBar("Select who are associated with")
+      return
+    }
+    if (contents.length <= 0) {
+      this.triggerSnackBar("Please input contents")
+      return
+    }
+
+    const temp_notes = {
+      contacts: [],
+      organizations: [],
+      leads: []
+    }
+    for (let item of this.selectedAssociates) {
+      if (this.findAssociatedContact(item)) {
+        temp_notes.contacts.push(item.id)
+      }
+      else if (this.findAssociatedCompany(item)) {
+        temp_notes.organizations.push(item.id)
+      }
+      else if (this.findAssociatedLead(item)) {
+        temp_notes.leads.push(item.id)
+      }
+    }
+
+    const notes_to = {}
+    for (let key in temp_notes) {
+      if (temp_notes[key].length > 0) {
+        notes_to[key] = temp_notes[key]
+      }
+    }
+    return {
+      notes_to: notes_to,
+      description: contents
+    }
   }
 }

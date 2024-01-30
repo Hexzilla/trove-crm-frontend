@@ -35,15 +35,39 @@ export const environment = {
   listroles: 'settings/roles/index',
   notifications: 'settings/notifications',
   pipelines: 'settings/pipeline',
+  /*======= Company ====================*/
   company: 'organizations',
   company_index: 'organizations/index',
+  company_detail: 'organizations/details',
   company_delete: 'organizations',
   company_delete_multiple: 'organizations?_method=DELETE',
+  company_update_state: 'organizations/status',
+  company_create_appointment: 'organizations/appointment',
+  company_update_appointment: 'organizations/appointment',  
+  company_appointment_state: 'organizations/appoint-status',
+  company_create_task: 'organizations/task',
+  company_update_task: 'organizations/task',
+  company_task_state: 'organizations/task-status',
+  company_delete_activity: 'activity',
+  company_add_note: 'organizations/note',
+  company_add_email: 'organizations/email',
+  company_add_call: 'organizations/call',
+  appointment_delete: 'appointment',
+  task_delete: 'task',
   contacts: 'contacts',
   contacts_index: 'contacts/index',
   contacts_delete: 'contacts',
   contacts_delete_multiple: 'contacts?_method=DELETE',
+  /*======= Lead ====================*/
   leads: 'leads',
+  pipelineMaster: 'pipelines',
+  leadFilter: 'leads/filter',
+  /*======= Activity ====================*/
+  verifyActivity: 'verify-acitivity',
+  activity: 'activity',
+  /*======== Dashboard ================*/
+  dashboard:'dashboard',
+  taskstatus:'task/task-status',
 };
 
 /*
